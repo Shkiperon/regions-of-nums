@@ -23,6 +23,7 @@ def get_lists_of_phones(numstype: str = 'def'):
         phones_lst = phones_csv_file.split('\n')
         phones_keys = phones_lst.pop(0).split(';')
         for iter_lst in map(lambda s: s.split(';'), phones_lst):
+            #TODO Need to add normalizer for numbers in start and end of range columns - leading zeros are missed
             result_lst.append(dict(map(lambda lst, kv: (kv, lst), iter_lst, phones_keys)))
     return result_lst
 
@@ -36,7 +37,24 @@ for phone_dict in def_phones_lst:
     oper_set.add(phone_dict['Оператор'])
     region_set.add(phone_dict['Регион'])
 print(pref_set)
+print(len(pref_set))
 print('--------')
 print(oper_set)
+print(len(oper_set))
 print('--------')
 print(region_set)
+print(len(region_set))
+print('--------')
+#TODO Need to add normalizer for names of regions in regions_set
+#TODO Need to add working FIAS database (think about importing this data from GAR format to ClickHouse and work through it)
+#TODO Add links between names of regions and terriroty codes
+
+#Final goal - output of script must be JSON in format:
+#{
+#    "start_number": "9001400000",
+#    "range_length": "5",
+#    "operator_name_rossvyaz": "ООО T2 Мобайл",
+#    "region_name_rossvyaz": "г. Москва * Московская область",
+#    "region_name_fias": "Город Москва",
+#    "region_code_fias": "77",
+#}
