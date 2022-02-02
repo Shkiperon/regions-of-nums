@@ -47,14 +47,18 @@ def get_lists_of_phones(numstype: str = 'def'):
 
 def get_list_of_regions():
     regions_dict = {}
+    regions_names_list = []
     soup_body = get_soup_body(fns_base_url)
     options = soup_body.find('select', {'id': 'ctl00_ctl00_ddlRegion_firstpage'})
     for i in options.find_all('option'):
         region_code, region_name = re.split(r' ', i.string, maxsplit=1)
         if re.match(r'\d{2}', region_code):
-            regions_dict.update({region_code: {'region_name_fns': region_name.strip().replace('  ', ' ')}})
+            region_clear_name = region_name.strip().replace('  ', ' ')
+            regions_names_list.append(region_clear_name)
+            regions_dict.update({region_code: {'region_name_fns': region_clear_name}})
         else:
             print(f'Bad region code: {region_code}')
+    regions_dict.update({'regions_names': regions_names_list})
     return regions_dict
 
 
@@ -63,6 +67,7 @@ region_set = set()
 for phone_dict in def_phones_lst:
     region_set.add(phone_dict['Регион'])
 result_dict = get_list_of_regions()
+region_list_from_fns = result_dict.get('regions_names')
 for region_name_mincifri in region_set:
     if region_name_mincifri not in dict_of_regions_normalizer.keys():
         try:
@@ -74,13 +79,13 @@ for region_name_mincifri in region_set:
             region_dict_from_result.update({'region_names_mincifri_list': updated_list})
             result_dict.update({region_code: region_dict_from_result})
             dict_of_regions_normalizer.update({region_name_mincifri: region_code})
-            print(dict_of_regions_normalizer)
         except ValueError:
             print('Bad region code. Sorry, but we cannot do next steps')
             sys.exit(1)
 
 
 #TODO Need to add normalizer for names of regions in regions_set
+#TODO Add search of region name in region_list_from_fns to decrease number of questions to user
 
 #Final goal - output of script must be JSON in format:
 #{
