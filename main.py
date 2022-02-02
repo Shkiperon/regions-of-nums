@@ -1,31 +1,50 @@
 import requests
+import re
 from bs4 import BeautifulSoup
 
 
-rossvyaz_url = 'https://rossvyaz.gov.ru/about/otkrytoe-pravitelstvo/otkrytye-dannee/reestr-otkrytykh-dannykh'
+mincifri_base_url = 'https://digital.gov.ru/ru/activity/govservices/20/'
+fns_base_url = 'https://www.nalog.ru/'
 phones_csv_dict = {
-    'abc3': 'CSV-ABC-3',
-    'abc4': 'CSV-ABC-4',
-    'abc8': 'CSV-ABC-8',
-    'def': 'CSV-DEF-9',
+    'abc3': 'https://digital.gov.ru/uploaded/files/abc-3xx',
+    'abc4': 'https://digital.gov.ru/uploaded/files/abc-4xx',
+    'abc8': 'https://digital.gov.ru/uploaded/files/abc-8xx',
+    'def': 'https://digital.gov.ru/uploaded/files/def-9xx',
 }
-#TODO add local SSL CA from system storage for correct verify
-#After that - delete ', verify=False' from requests.get() calls
+
+
+def get_soup_body(base_url: str):
+    html_body = requests.get(base_url).text
+    return BeautifulSoup(html_body, 'html.parser')
 
 
 def get_lists_of_phones(numstype: str = 'def'):
     result_lst = []
+    phones_csv_url = ''
     if numstype in phones_csv_dict.keys():
-        html_body = requests.get(rossvyaz_url, verify=False).text
-        soup_body = BeautifulSoup(html_body, 'lxml')
-        phones_csv_url = soup_body.find('a', text=phones_csv_dict.get(numstype)).get('href')
-        phones_csv_file = requests.get(phones_csv_url, verify=False).text
+        soup_body = get_soup_body(mincifri_base_url)
+        search_regex = re.escape(phones_csv_dict.get(numstype)) + r'[0-3][1-9](0[1-9]|1[1-2])20[2-3][0-9]\.csv'
+        for phones_csv_tag in soup_body.find_all('a', string='csv'):
+            if re.match(search_regex, phones_csv_tag.get('href')):
+                phones_csv_url = phones_csv_tag.get('href')
+                break
+        phones_csv_file = requests.get(phones_csv_url).text
         phones_lst = phones_csv_file.split('\n')
         phones_keys = phones_lst.pop(0).split(';')
         for iter_lst in map(lambda s: s.split(';'), phones_lst):
-            #TODO Need to add normalizer for numbers in start and end of range columns - leading zeros are missed
             result_lst.append(dict(map(lambda lst, kv: (kv, lst), iter_lst, phones_keys)))
     return result_lst
+
+
+def get_list_of_regions():
+    soup_body = get_soup_body(fns_base_url)
+    options = soup_body.find('select', {'id': 'ctl00_ctl00_ddlRegion_firstpage'})
+    for i in options.find_all('option'):
+        region_code, region_name = re.split(r' ', i.string, maxsplit=1)
+        if re.match(r'\d{2}', region_code):
+            print(f"Code: '{region_code}'; Name: '{region_name.strip().replace('  ', ' ')}'")
+        else:
+            print(f'Bad region code: {region_code}')
 
 
 def_phones_lst = get_lists_of_phones()
@@ -45,6 +64,7 @@ print('--------')
 print(region_set)
 print(len(region_set))
 print('--------')
+get_list_of_regions()
 #TODO Need to add normalizer for names of regions in regions_set
 #TODO Need to add working FIAS database (think about importing this data from GAR format to ClickHouse and work through it)
 #TODO Add links between names of regions and terriroty codes
@@ -53,8 +73,8 @@ print('--------')
 #{
 #    "start_number": "9001400000",
 #    "range_length": "5",
-#    "operator_name_rossvyaz": "ООО T2 Мобайл",
-#    "region_name_rossvyaz": "г. Москва * Московская область",
-#    "region_name_fias": "Город Москва",
-#    "region_code_fias": "77",
+#    "operator_name_mincifri": "ООО T2 Мобайл",
+#    "region_name_mincifri": "г. Москва * Московская область",
+#    "region_name_fns": "Город Москва",
+#    "region_code_fns": "77",
 #}
