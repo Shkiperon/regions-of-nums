@@ -6,12 +6,12 @@ from bs4 import BeautifulSoup
 
 
 mincifri_base_url = 'https://digital.gov.ru/ru/activity/govservices/20/'
-fns_base_url = 'https://www.nalog.ru/'
+fns_base_url = 'https://www.nalog.gov.ru/'
 phones_csv_dict = {
-    'abc3': 'https://digital.gov.ru/uploaded/files/abc-3xx',
-    'abc4': 'https://digital.gov.ru/uploaded/files/abc-4xx',
-    'abc8': 'https://digital.gov.ru/uploaded/files/abc-8xx',
-    'def': 'https://digital.gov.ru/uploaded/files/def-9xx',
+    'abc3': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-3xx_[a-zA-Z]+\.csv',
+    'abc4': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-4xx_[a-zA-Z]+\.csv',
+    'abc8': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-8xx_[a-zA-Z]+\.csv',
+    'def': r'https://digital\.gov\.ru/uploaded/files/def-9xx_[a-zA-Z]+\.csv',
 }
 dict_of_regions_normalizer_path = './regions_normalizer.json'
 try:
@@ -32,7 +32,7 @@ def get_lists_of_phones(numstype: str = 'def'):
     phones_csv_url = ''
     if numstype in phones_csv_dict.keys():
         soup_body = get_soup_body(mincifri_base_url)
-        search_regex = re.escape(phones_csv_dict.get(numstype)) + r'[0-3][1-9](0[1-9]|1[1-2])20[2-3][0-9]\.csv'
+        search_regex = phones_csv_dict.get(numstype)
         for phones_csv_tag in soup_body.find_all('a', string='csv'):
             if re.match(search_regex, phones_csv_tag.get('href')):
                 phones_csv_url = phones_csv_tag.get('href')
@@ -47,18 +47,21 @@ def get_lists_of_phones(numstype: str = 'def'):
 
 def get_list_of_regions():
     regions_dict = {}
-    regions_names_list = []
+    regions_names = []
+    regions_codes = []
     soup_body = get_soup_body(fns_base_url)
     options = soup_body.find('select', {'id': 'ctl00_ctl00_ddlRegion_firstpage'})
     for i in options.find_all('option'):
         region_code, region_name = re.split(r' ', i.string, maxsplit=1)
         if re.match(r'\d{2}', region_code):
             region_clear_name = region_name.strip().replace('  ', ' ')
-            regions_names_list.append(region_clear_name)
-            regions_dict.update({region_code: {'region_name_fns': region_clear_name}})
+            regions_names.append({region_clear_name: region_code})
+            regions_codes.append({region_code: region_clear_name})
         else:
             print(f'Bad region code: {region_code}')
-    regions_dict.update({'regions_names': regions_names_list})
+    regions_dict.update({'regions_names': regions_names})
+    regions_dict.update({'regions_codes': regions_codes})
+    print(f'{regions_dict}')
     return regions_dict
 
 
@@ -69,8 +72,9 @@ for phone_dict in def_phones_lst:
 result_dict = get_list_of_regions()
 region_list_from_fns = result_dict.get('regions_names')
 for region_name_mincifri in region_set:
-    if region_name_mincifri not in dict_of_regions_normalizer.keys():
+    if region_name_mincifri not in dict_of_regions_normalizer.keys() and region_name_mincifri not in region_list_from_fns:
         try:
+            #TODO Change filling algorithm
             region_int_code = int(input(f"Please enter region code for '{region_name_mincifri}': "))
             region_code = f'{region_int_code:02d}'
             region_dict_from_result = result_dict.get(region_code, None)
@@ -90,12 +94,12 @@ for region_name_mincifri in region_set:
 #Final goal - output of script must be JSON in format:
 #{
 #   ......
-#   "77": {
+#   "77": [{
 #           "start_number": "9001400000",
 #           "range_length": "5",
 #           "operator_name_mincifri": "ООО T2 Мобайл",
 #           "region_name_mincifri": "г. Москва * Московская область",
 #           "region_name_fns": "Город Москва"
-#       },
+#       },...]
 #   ......
 #}
