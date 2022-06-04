@@ -1,17 +1,28 @@
 import sys
+from time import sleep
 import requests
 import re
 import json
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
-mincifri_base_url = 'https://digital.gov.ru/ru/activity/govservices/20/'
+mincifri_base_url = 'http://opendata.digital.gov.ru/registry/numeric/downloads'
 fns_base_url = 'https://www.nalog.gov.ru/'
+zniis_url = 'https://zniis.ru'
+zniis_bpdn_url = 'https://zniis.ru/bdpn/check/'
+ublock_ext = './ublock_origin-1.42.4.xpi'
+ublock_ext_chrome = './ublock.crx'
+
 phones_csv_dict = {
-    'abc3': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-3xx_[a-zA-Z]+\.csv',
-    'abc4': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-4xx_[a-zA-Z]+\.csv',
-    'abc8': r'https://digital\.gov\.ru/uploaded/files/(abc|avs)-8xx_[a-zA-Z]+\.csv',
-    'def': r'https://digital\.gov\.ru/uploaded/files/def-9xx_[a-zA-Z]+\.csv',
+    'abc3': r'http://opendata\.digital\.gov\.ru/downloads/ABC-3xx.csv\?*',
+    'abc4': r'http://opendata\.digital\.gov\.ru/downloads/ABC-4xx.csv\?*',
+    'abc8': r'http://opendata\.digital\.gov\.ru/downloads/ABC-8xx.csv\?*',
+    'def': r'http://opendata\.digital\.gov\.ru/downloads/DEF-9xx.csv\?*',
 }
 dict_of_regions_normalizer_path = './regions_normalizer.json'
 try:
@@ -33,7 +44,7 @@ def get_lists_of_phones(numstype: str = 'def'):
     if numstype in phones_csv_dict.keys():
         soup_body = get_soup_body(mincifri_base_url)
         search_regex = phones_csv_dict.get(numstype)
-        for phones_csv_tag in soup_body.find_all('a', string='csv'):
+        for phones_csv_tag in soup_body.find_all('a', string='', class_='text-primary-500'):
             if re.match(search_regex, phones_csv_tag.get('href')):
                 phones_csv_url = phones_csv_tag.get('href')
                 break
@@ -64,6 +75,26 @@ def get_list_of_regions():
     print(f'{regions_dict}')
     return regions_dict
 
+
+def check_num_at_bpdn(num: int):
+    #chrome_opts = webdriver.ChromeOptions()
+    #chrome_opts.add_extension(ublock_ext_chrome)
+    #driver = webdriver.Chrome(options=chrome_opts)
+    driver = webdriver.Firefox()
+    driver.install_addon(ublock_ext, temporary=True)
+    driver.get(zniis_bpdn_url)
+    driver.get
+    try:
+        wait = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.NAME, "num")))
+    finally:
+        elem = driver.find_element(By.NAME, "num")
+        elem.send_keys(num)
+        elem.send_keys(Keys.ENTER)
+        sleep(15)
+        driver.close()
+
+
+check_num_at_bpdn(9112230075)
 
 def_phones_lst = get_lists_of_phones()
 region_set = set()
